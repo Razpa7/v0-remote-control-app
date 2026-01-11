@@ -50,7 +50,8 @@ export function ConnectionScreen({ onConnect }: ConnectionScreenProps) {
         toast({
           variant: "destructive",
           title: "Error de conexión",
-          description: "No se pudo conectar al servidor. Verifica la IP, puerto y PIN.",
+          description:
+            "No se pudo conectar al servidor. Verifica la IP, puerto y PIN. Asegúrate de usar HTTP (no HTTPS) si estás en la misma red local.",
         })
         setIsConnecting(false)
       }
@@ -70,11 +71,13 @@ export function ConnectionScreen({ onConnect }: ConnectionScreenProps) {
 
   const handleQrScan = (data: string) => {
     try {
-      // El QR contiene exactamente: ws://<IP_LOCAL>:<PUERTO>?pin=<PIN>
-      if (data.startsWith("ws://")) {
+      console.log("Scanned QR Data:", data)
+      const normalizedData = data.trim()
+
+      if (normalizedData.toLowerCase().startsWith("ws://") || normalizedData.toLowerCase().startsWith("wss://")) {
         setIsConnecting(true)
 
-        const ws = new WebSocket(data)
+        const ws = new WebSocket(normalizedData)
 
         ws.onopen = () => {
           toast({
@@ -85,11 +88,13 @@ export function ConnectionScreen({ onConnect }: ConnectionScreenProps) {
           onConnect(ws)
         }
 
-        ws.onerror = () => {
+        ws.onerror = (e) => {
+          console.error("WebSocket Error:", e)
           toast({
             variant: "destructive",
             title: "Error de conexión",
-            description: "No se pudo conectar al servidor escaneado.",
+            description:
+              "No se pudo conectar. Verifica que ambos dispositivos estén en la misma red y que NO estés usando HTTPS.",
           })
           setIsConnecting(false)
         }
@@ -98,13 +103,14 @@ export function ConnectionScreen({ onConnect }: ConnectionScreenProps) {
           setIsConnecting(false)
         }
       } else {
-        throw new Error("Formato inválido")
+        throw new Error(`Formato inválido: ${data.substring(0, 15)}...`)
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error(error)
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Código QR inválido. Debe contener una URL WebSocket válida.",
+        description: `QR inválido: ${error.message || "Formato desconocido"}`,
       })
       setIsConnecting(false)
     }
